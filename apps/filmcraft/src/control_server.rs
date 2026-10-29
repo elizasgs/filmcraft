@@ -31,6 +31,23 @@ pub fn start(port: u16, ctx: egui::Context) -> Receiver<ControlRequest> {
     start_with_token(port, ctx, std::env::var("FILMCRAFT_CONTROL_TOKEN").ok())
 }
 
+/// Start the server on a free loopback port with a credential the caller made, for the Assistant
+/// panel: the agent it launches gets the token through its environment. Returns the receiver for
+/// the app and the port the bridge connects to, or why the server could not start.
+pub fn start_ephemeral(ctx: egui::Context, token: String) -> Result<(Receiver<ControlRequest>, u16), String> {
+    if token.len() != 64 || !token.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err("the control credential must be 64 hex characters".into());
+    }
+    let listener = TcpListener::bind(("127.0.0.1", 0)).map_err(|e| format!("could not open a control port: {e}"))?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    let (tx, rx) = channel::<ControlRequest>();
+    std::thread::Builder::new()
+        .name("control-accept".into())
+        .spawn(move || accept_loop(listener, tx, ctx, token))
+        .map_err(|e| format!("could not start the control server: {e}"))?;
+    Ok((rx, port))
+}
+
 fn start_with_token(port: u16, ctx: egui::Context, token: Option<String>) -> Receiver<ControlRequest> {
     let (tx, rx) = channel::<ControlRequest>();
     // An inherited environment variable shares the credential with the owner's bridge process

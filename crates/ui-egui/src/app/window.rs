@@ -14,9 +14,19 @@ impl FilmcraftApp {
         }
     }
 
+    /// With a host that provides the assistant, put its column on a built-in layout. A workspace
+    /// the user saved is left exactly as they arranged it (the panel is in Window ▸ Assistant).
+    pub fn install_assistant_column(&mut self) {
+        let saved = self.workspaces.saved.iter().any(|w| w.name == self.ui.workspace);
+        if self.hooks.assistant.is_some() && !saved {
+            dock::add_assistant_column(&mut self.ui.dock);
+        }
+    }
+
     pub fn set_workspace(&mut self, name: &str) {
         self.ui.workspace = name.to_string();
         self.ui.dock = dock::saved_docking(&self.workspaces, name);
+        self.install_assistant_column();
         self.pending_panel_raise = None;
         self.ui.keys.maximized = None;
         if self.workspaces.current != name {

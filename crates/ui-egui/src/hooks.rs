@@ -43,9 +43,22 @@ pub struct AudioDevices {
     pub output_channels: u16,
 }
 
+/// The AI assistant panel, provided by the desktop host: a terminal running an agent (Claude Code)
+/// that drives this app through the control channel. `ui-egui` stays free of process and
+/// terminal code, so the web build simply has no assistant.
+pub trait AssistantHost {
+    /// Draw the assistant into `rect`.
+    fn show(&mut self, ui: &mut egui::Ui, rect: egui::Rect);
+    /// The control-channel receiver, once the host has started the server the agent talks to.
+    /// Handed over once; the app then answers its requests like those of `--control`.
+    fn take_control(&mut self) -> Option<Receiver<ControlRequest>>;
+}
+
 /// Host hooks for native file dialogs etc.
 #[derive(Default)]
 pub struct HostHooks {
+    /// The Assistant panel's content (desktop app only).
+    pub assistant: Option<Box<dyn AssistantHost>>,
     pub pick_files: Option<Box<dyn FnMut(&[&str]) -> Vec<String>>>,
     /// The cursor in physical screen pixels. Where the windowing layer reports no pointer while files are dragged in from the OS (Windows), a drop is placed where this says it landed.
     pub cursor_screen_position: Option<Box<dyn Fn() -> Option<(i32, i32)>>>,

@@ -69,6 +69,7 @@ impl FilmcraftApp {
         self.pending_timeline_drop = None;
         panels::dialogs::show(self, &ctx);
         updates_ui::show(self, &ctx);
+        self.ai_cursor.paint(&ctx);
         if !self.ui.show_status_bar {
             return;
         }

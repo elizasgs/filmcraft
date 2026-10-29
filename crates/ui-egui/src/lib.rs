@@ -83,6 +83,7 @@ use native_dialogs::FileDialog;
 use state::UiState;
 use theme::{ThemeKind, Tokens};
 
+mod ai_cursor;
 mod app;
 mod audio;
 mod gpu;
@@ -92,7 +93,7 @@ mod raw_input;
 use audio::shuttle_mix_rate;
 pub use audio::{AUDIO_RETRY_S, AUDIO_STALL_S, playback_mix};
 pub use gpu::{gpu_compositor_unsupported, software_rasterizer};
-pub use hooks::{AudioDevices, AudioOut, ClipboardMedia, HostHooks, RelinkHint, SystemThemeFn};
+pub use hooks::{AssistantHost, AudioDevices, AudioOut, ClipboardMedia, HostHooks, RelinkHint, SystemThemeFn};
 pub(crate) use raw_input::rewrite_native_window_input;
 
 pub use ime_reset::install_ime_reset_callbacks;
@@ -212,6 +213,8 @@ pub struct FilmcraftApp {
     /// [`MAX_THUMB_TEXTURES`] are freed, least recently used first (#1682).
     thumb_used: HashMap<String, u64>,
     control_rx: Option<Receiver<ControlRequest>>,
+    /// The overlay that shows where an agent is working (see `ai_cursor`).
+    pub(crate) ai_cursor: ai_cursor::AiCursor,
     /// One explicit panel reveal; consumed by the custom renderer, never repeated per frame.
     pub(crate) pending_panel_raise: Option<PanelKind>,
     /// Explicit automation mode: native widget input and native menu commands are excluded.

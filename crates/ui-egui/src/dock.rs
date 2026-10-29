@@ -41,10 +41,12 @@ pub enum PanelKind {
     ReferenceMonitor,
     Timecode,
     ProjectNotes,
+    /// The AI assistant: a terminal running Claude Code, wired to this app (desktop only).
+    Assistant,
 }
 
 impl PanelKind {
-    pub const ALL: [PanelKind; 28] = [
+    pub const ALL: [PanelKind; 29] = [
         PanelKind::Project,
         PanelKind::MediaBrowser,
         PanelKind::Libraries,
@@ -73,6 +75,7 @@ impl PanelKind {
         PanelKind::ReferenceMonitor,
         PanelKind::Timecode,
         PanelKind::ProjectNotes,
+        PanelKind::Assistant,
     ];
     pub fn title(self) -> &'static str {
         match self {
@@ -104,6 +107,7 @@ impl PanelKind {
             PanelKind::ReferenceMonitor => "Reference Monitor",
             PanelKind::Timecode => "Timecode",
             PanelKind::ProjectNotes => "Project Notes",
+            PanelKind::Assistant => "Assistant",
         }
     }
     pub fn id(self) -> String {
@@ -413,6 +417,8 @@ mod legacy {
 const TOOLS_WIDTH: f32 = 64.0;
 /// The width of the Audio Meters in the built-in workspaces, in points.
 const METERS_WIDTH: f32 = 116.0;
+/// The Assistant column of the default Editing workspace.
+const ASSISTANT_WIDTH: f32 = 420.0;
 
 /// The default layout of a named workspace.
 pub fn workspace(name: &str) -> Layout {
@@ -497,6 +503,18 @@ fn workspace_root(name: &str) -> Node<PanelKind> {
             ),
             hsplit(Ratio(0.29), tabs(&[Project, MediaBrowser, Libraries, Info, Effects, Markers, History], 0), bottom_editing()),
         ),
+    }
+}
+
+/// Give `layout` a fixed-width Assistant column along the right edge of the whole window, unless it
+/// already has the Assistant. The desktop app does this for layouts it builds itself; the
+/// built-in workspaces stay as they are, so the web build and its tests never see the column.
+pub fn add_assistant_column(layout: &mut Layout) {
+    if layout.contains(&PanelKind::Assistant) {
+        return;
+    }
+    if let Some(root) = layout.root.take() {
+        layout.root = Some(hsplit(SplitSize::FixedSecond(ASSISTANT_WIDTH), root, tabs(&[PanelKind::Assistant], 0)));
     }
 }
 

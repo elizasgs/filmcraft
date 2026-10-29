@@ -60,6 +60,7 @@ impl FilmcraftApp {
             textures: HashMap::new(),
             thumb_used: HashMap::new(),
             control_rx: None,
+            ai_cursor: Default::default(),
             pending_panel_raise: None,
             control_input_only: false,
             native_window_focused: None,
@@ -435,7 +436,8 @@ impl eframe::App for FilmcraftApp {
             // in a background window without activating it or taking the user's OS keyboard.
             raw_input.focused = true;
         }
-        if self.synthetic_pending_step.is_none() && !self.synthetic.is_empty() {
+        // The AI cursor lets a click wait until it has glided there, so the user sees where it lands.
+        if self.synthetic_pending_step.is_none() && !self.synthetic.is_empty() && !(self.ai_cursor.enabled && self.ai_cursor.holding()) {
             // Pointer events go one per frame so egui sees press → moves → release as a real drag
             // (all in one frame reads as a click); key/text runs go together up to a key release.
             let pointer = |e: &egui::Event| matches!(e, egui::Event::PointerMoved(_) | egui::Event::PointerButton { .. } | egui::Event::MouseWheel { .. });
@@ -453,6 +455,7 @@ impl eframe::App for FilmcraftApp {
                     self.synthetic_modifiers = *modifiers;
                 }
             }
+            self.ai_cursor.note_events(&step);
             self.synthetic_pending_step = Some(step);
             self.synthetic_step_offered = false;
         }

@@ -40,6 +40,10 @@ chrono = { workspace = true, features = ["clock"] }
 sys-locale = "0.3"
 # Help menu / About / Discord links in the system browser (MIT; as PhotoCraft).
 open = "5"
+# Assistant panel: terminal emulation and the PTY that runs Claude Code (Apache-2.0), and the random
+# control credential it is given (MIT OR Apache-2.0).
+alacritty_terminal = "0.26"
+getrandom = "0.3"
 
 [dev-dependencies]
 glob = "0.3"

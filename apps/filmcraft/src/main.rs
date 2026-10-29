@@ -26,6 +26,7 @@
 mod app_nap;
 mod appearance;
 mod args;
+mod assistant;
 mod audio;
 mod audio_in;
 mod control_server;
@@ -316,6 +317,8 @@ fn app_creator(launch: Launch, graphics: graphics::GraphicsStart, created: Arc<A
         // Help menu, About and Discord links (#642): eframe is built without its `links`
         // feature, so `ctx.open_url` does nothing on the desktop. Detached, so a launcher
         // that waits for the browser never freezes the UI.
+        app.hooks.assistant = Some(Box::new(assistant::Assistant::new()));
+        app.install_assistant_column();
         app.hooks.open_url = Some(Box::new(|url: &str| open::that_detached(url).map_err(|e| e.to_string())));
         app.hooks.clipboard_media = Some(Box::new(clipboard_media));
         // Settings ▸ General ▸ Interface Language ▸ System Language (#218).

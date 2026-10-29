@@ -104,6 +104,30 @@ fn as_pressed(mut m: egui::Modifiers) -> egui::Modifiers {
     m
 }
 
+/// Where on screen a command acts, from the clip or project item its parameters name.
+fn command_target(app: &FilmcraftApp, params: &Value) -> Option<egui::Pos2> {
+    let named = |keys: &[&str], prefix: &str| {
+        keys.iter().find_map(|k| {
+            let v = params.get(*k)?;
+            let first = v.as_array().and_then(|a| a.first()).unwrap_or(v);
+            let name = first.as_u64().map(|n| n.to_string()).or_else(|| first.as_str().map(str::to_string))?;
+            Some(format!("{prefix}{name}"))
+        })
+    };
+    let id = named(&["clip", "clips"], "timeline.clip.").or_else(|| named(&["item", "items"], "project.item."))?;
+    let e = app.auto.find(&id)?;
+    Some(egui::pos2(e.rect[0] + e.rect[2] * 0.5, e.rect[1] + e.rect[3] * 0.5))
+}
+
+/// Show an agent's command: the AI cursor flies to what it acts on, and the status bar names it.
+fn show_command(app: &mut FilmcraftApp, id: &str, target: Option<egui::Pos2>) {
+    match target {
+        Some(pos) => app.ai_cursor.glide_to(pos, id),
+        None => app.ai_cursor.set_label(id),
+    }
+    app.ui.status = format!("Claude: {id}");
+}
+
 /// Resolve a point from `{id}` (element centre) or `{x, y}`.
 fn point(app: &FilmcraftApp, p: &Value) -> Result<egui::Pos2, String> {
     if let Some(id) = p.get("id").and_then(Value::as_str) {
@@ -127,6 +151,9 @@ fn handle_ui_set(app: &mut FilmcraftApp, ctx: &egui::Context, p: &Value) -> Outc
             Ok(d) => app.ui.tts = d,
             Err(e) => return err(format!("bad `tts`: {e}")),
         }
+    }
+    if let Some(on) = p.get("aiCursor").and_then(Value::as_bool) {
+        app.ai_cursor.enabled = on;
     }
     if let Some(t) = s("tool") {
         match Tool::from_name(t) {
@@ -373,6 +400,11 @@ fn set_panel_views(app: &mut FilmcraftApp, p: &Value) -> Result<(), String> {
     Ok(())
 }
 
+/// What a drag is named on the AI cursor: the element it ends on, if it was given by id.
+fn to_id_label(p: &Value) -> &str {
+    p.get("to").and_then(|t| t.get("id")).and_then(Value::as_str).unwrap_or("drag")
+}
+
 fn handle_synthetic_input(app: &mut FilmcraftApp, p: &Value, method: &str) -> Outcome {
     let s = |key: &str| p.get(key).and_then(Value::as_str);
     match method {
@@ -392,6 +424,7 @@ fn handle_synthetic_input(app: &mut FilmcraftApp, p: &Value, method: &str) -> Ou
                 0
             };
             let m = modifiers(p);
+            app.ai_cursor.set_label(s("id").unwrap_or(""));
             app.synthetic.push(egui::Event::ModifiersChanged(m));
             app.synthetic.push(egui::Event::PointerMoved(pos));
             if method == "ui.click" {
@@ -420,6 +453,7 @@ fn handle_synthetic_input(app: &mut FilmcraftApp, p: &Value, method: &str) -> Ou
                 Err(error) => return err(error),
             };
             let m = modifiers(p);
+            app.ai_cursor.set_label(to_id_label(p));
             app.synthetic.push(egui::Event::ModifiersChanged(m));
             app.synthetic.push(egui::Event::PointerMoved(a));
             app.synthetic.push(egui::Event::PointerButton { pos: a, button: egui::PointerButton::Primary, pressed: true, modifiers: m });
@@ -489,8 +523,12 @@ pub fn handle(app: &mut FilmcraftApp, ctx: &egui::Context, req: &ControlRequest)
         "engine.execute" | "ui.menu.invoke" => {
             let Some(id) = s("command").or(s("id")) else { return err("missing `command`") };
             let params = p.get("params").cloned().unwrap_or(json!({}));
+            let target = command_target(app, &params);
             match crate::menus::invoke(app, ctx, id, params) {
-                Ok(v) => ok(v),
+                Ok(v) => {
+                    show_command(app, id, target);
+                    ok(v)
+                }
                 Err(e) => err(e),
             }
         }
